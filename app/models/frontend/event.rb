@@ -9,6 +9,7 @@ module Frontend
     has_many :recordings, class_name: 'Frontend::Recording'
 
     scope :promoted, ->(n) { where(promoted: true).order('updated_at desc').limit(n) }
+    scope :published, -> { where('release_date IS NOT NULL') }
 
     def title
       self[:title].strip
@@ -40,19 +41,19 @@ module Frontend
       if poster_filename.present?
         File.join(Settings.static_url, conference.images_path, poster_filename).freeze
       elsif relive_present?
-        relive['thumbnail'].freeze
+          relive['thumbnail'].freeze
+        end
       end
-    end
 
     def thumb_url
       if thumb_filename_exists?
         File.join(Settings.static_url, conference.images_path, thumb_filename).freeze
       elsif relive_present?
-        relive['thumbnail'].freeze
-      else
-        conference.logo_url.freeze
+          relive['thumbnail'].freeze
+        else
+          conference.logo_url.freeze
+        end
       end
-    end
 
     def timeline_url
       File.join(Settings.static_url, conference.images_path, timeline_filename).freeze if timelens_present?
@@ -76,29 +77,32 @@ module Frontend
                 .uniq.to_h.sort
     end
 
-    # used by player
-    def videos_sorted_by_language
-      recordings.video
-                .sort_by(&:mime_type)
-                .sort_by { |x|
-                  (x.language == original_language ? -5 : 0) +
-                    (x.html5 ? -2 : 0) -
-                    ((x.width || 500) / 500)
-                }
-    end
-
-    # used for the hd and sd download buttons
+    # returns one video, used for the hd and sd download buttons
+    # prefering files with multiple audio tracks (html5=0) 
     def video_for_download(filetype, high_quality: true)
       recordings.video_without_slides
                 .select { |x| x.filetype == filetype && x.high_quality == high_quality }
                 .min_by { |x| x.html5 ? 1 : 0 }
     end
 
+    # returns list of videos, one per quality aka resolution
+    # prefering files with multiple audio tracks (html5=0)
+    def videos_for_download(filetype)
+      recordings.video_without_slides
+                .select   { |x| x.filetype == filetype }
+                .group_by { |x| x.height }
+                .sort
+                .reverse
+                .map { |_height, group| 
+                  group.min_by { |x| x.html5 ? 1 : 0 }
+                }
+    end
+
     def audio_recordings_for_download(filetype)
       recordings.audio
-                .select { |x| x.filetype == filetype }
+                .select  { |x| x.filetype == filetype }
                 .sort_by { |x| x.language == original_language ? '' : x.language }
-                .map { |x| [x.language, x] }
+                .map     { |x| [x.language, x] }
                 .to_h
     end
 
@@ -113,10 +117,10 @@ module Frontend
 
     def slides_for_download(filetype)
       recordings.slides
-                .select { |x| x.filetype == filetype }
-                .sort_by { |x| x.language == original_language ? '' : x.language }
-                .map { |x| [x.language, x] }
-                .to_h
+        .select  { |x| x.filetype == filetype }
+        .sort_by { |x| x.language == original_language ? '' : x.language }
+        .map     { |x| [x.language, x] }
+        .to_h
     end
 
     def slide
@@ -139,7 +143,7 @@ module Frontend
 
     # @return [Array(Recording)]
     def by_mime_type(mime_type: 'video/mp4')
-      recordings.by_mime_type(mime_type).first.freeze
+        recordings.by_mime_type(mime_type).first.freeze
     end
 
     def related_event_ids(n)
@@ -158,9 +162,9 @@ module Frontend
     def clappr_subtitles
       recordings.subtitle.map do |track|
         {
-          lang: track.language_iso_639_1,
-          label: track.language_label,
-          src: track.cors_url,
+            lang: track.language_iso_639_1,
+            label: track.language_label,
+            src: track.cors_url,
         }
       end
     end
@@ -188,7 +192,7 @@ module Frontend
     end
 
     def timelens_present?
-      timeline_filename.present? and thumbnails_filename.present?
+        timeline_filename.present? and thumbnails_filename.present?
     end
 
     private

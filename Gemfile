@@ -78,7 +78,11 @@ gem 'api-pagination'
 
 # GraphQL
 gem 'graphql'
-gem 'graphiql-rails', group: :development
+gem 'graphql-query-resolver'
+gem 'search_object'
+gem 'search_object_graphql'
+gem 'graphiql-rails'
+gem 'apollo-federation'
 
 group :doc do
   # bundle exec rake doc:rails generates the API under doc/api.
