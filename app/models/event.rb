@@ -173,6 +173,7 @@ class Event < ApplicationRecord
   # for elastic search
   def subtitles
     recordings.subtitle
+  end
 
   # used by player and graphql
   def videos_sorted_by_language
